@@ -26,6 +26,7 @@ export const zipArchives: ZipArchives = Object.fromEntries(libs_config.libraries
   }
   ];
 }))
+zipArchives['fonts'] = {}
 
 export const deployedArchiveNames =
   Object.entries(zipArchives)
