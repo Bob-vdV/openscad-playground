@@ -2,8 +2,10 @@
 
 import React, { CSSProperties, useContext, useRef, useState } from 'react';
 import Editor, { loader, Monaco } from '@monaco-editor/react';
+import { EditorValueSync } from '../state/editor-value-sync.ts';
 import openscadEditorOptions from '../language/openscad-editor-options.ts';
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import type * as monaco from 'monaco-editor/editor/editor.api';
+import { KeyCode, KeyMod } from '../language/monaco-enums.ts';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { MenuItem } from 'primereact/menuitem';
@@ -17,7 +19,8 @@ import FilePicker, {  } from './FilePicker.tsx';
 const isMonacoSupported = (() => {
   const ua = window.navigator.userAgent;
   const iosWk = ua.match(/iPad|iPhone/i) && ua.match(/WebKit/i);
-  return !iosWk;
+  const android = ua.match(/Android/i);
+  return !(iosWk || android);
 })();
 
 let monacoInstance: Monaco | null = null;
@@ -35,6 +38,9 @@ export default function EditorPanel({className, style}: {className?: string, sty
   const state = model.state;
 
   const [editor, setEditor] = useState(null as monaco.editor.IStandaloneCodeEditor | null)
+  // Typed text must never be overwritten by a stale render of the controlled value (see EditorValueSync).
+  const valueSync = useRef<EditorValueSync | null>(null);
+  valueSync.current ??= new EditorValueSync(model.source);
 
   if (editor) {
     const checkerRun = state.lastCheckerRun;
@@ -60,13 +66,13 @@ export default function EditorPanel({className, style}: {className?: string, sty
     editor.addAction({
       id: "openscad-save-do-nothing",
       label: "Save (disabled)",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+      keybindings: [KeyMod.CtrlCmd | KeyCode.KeyS],
       run: () => {}
     });
     editor.addAction({
       id: "openscad-save-project",
       label: "Save OpenSCAD project",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS],
+      keybindings: [KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyS],
       run: () => model.saveProject()
     });
     setEditor(editor)
@@ -168,8 +174,8 @@ export default function EditorPanel({className, style}: {className?: string, sty
             className="openscad-editor absolute-fill"
             defaultLanguage="openscad"
             path={state.params.activePath}
-            value={model.source}
-            onChange={s => model.source = s ?? ''}
+            value={valueSync.current!.valueProp(model.source)}
+            onChange={s => { const text = s ?? ''; valueSync.current!.emitted(text); model.source = text; }}
             onMount={onMount} // TODO: This looks a bit silly, does it trigger a re-render??
             options={{
               ...openscadEditorOptions,
