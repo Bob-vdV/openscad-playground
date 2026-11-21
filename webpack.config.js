@@ -65,6 +65,10 @@ const config = [
     },
     resolve: {
       extensions: ['.tsx', '.ts', '.js'],
+      fallback: {
+        fs: false,
+        path: false,
+      },
     },
     // @gltf-transform/core's NodeIO dynamically imports node:fs / node:path; we only use the in-memory API.
     externals: { 'node:fs': 'var undefined', 'node:path': 'var undefined' },
@@ -82,6 +86,9 @@ const config = [
       port: 4000,
     },
     plugins: [
+      new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+        resource.request = resource.request.replace(/^node:/, '');
+      }),
       new webpack.EnvironmentPlugin({
         'process.env.NODE_ENV': 'development',
       }),
@@ -216,6 +223,9 @@ const config = [
       'browserfs': 'BrowserFS'
     },
     plugins: [
+      new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+        resource.request = resource.request.replace(/^node:/, '');
+      }),
       new webpack.EnvironmentPlugin({
         'process.env.NODE_ENV': 'development',
       }),
